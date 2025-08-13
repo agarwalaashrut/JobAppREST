@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Search Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div class="container">
+        <h1>Job Search Results</h1>
+        {% if search_query %}
+            <p>Showing results for "{{ search_query }}"</p>
+        {% endif %}
+        {% if results %}
+            <ul class="job-list">
+                {% for job in results %}
+                    <li class="job-item">
+                        <h2>{{ job.title }}</h2>
+                        <p><strong>Company:</strong> {{ job.company }}</p>
+                        <p><strong>Location:</strong> {{ job.location }}</p>
+                        <p><a href="{{ job.link }}" target="_blank">View Job Listing</a></p>
+                        <!-- Form to save this job as an application -->
+                        <form action="{{ url_for('apply') }}" method="post" style="margin-top: 0.5rem;">
+                            <input type="hidden" name="title" value="{{ job.title }}" />
+                            <input type="hidden" name="company" value="{{ job.company }}" />
+                            <input type="hidden" name="location" value="{{ job.location }}" />
+                            <input type="hidden" name="link" value="{{ job.link }}" />
+                            <button type="submit">Save Application</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No results found.  Try a different search term.</p>
+        {% endif %}
+        <a href="{{ url_for('index') }}">Back to Search</a>
+    </div>
+</body>
+</html>
