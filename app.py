@@ -21,8 +21,9 @@ with ``debug=True`` changes will be reloaded automatically.
 from flask import Flask, render_template, request, redirect, url_for
 
 from api_client import get_jobs
-from database import add_application, get_all_applications
-
+from flask import Flask, jsonify, request
+from bson import ObjectId
+from database import connect, add_application, list_applications, update_application_status
 
 app = Flask(__name__)
 
@@ -70,10 +71,43 @@ def apply() -> str:
 
 @app.route('/applications')
 def applications() -> str:
-    """Render the dashboard showing all saved job applications."""
-    apps = get_all_applications()
-    return render_template('applications.html', applications=apps)
 
+    return render_template('applications.html')
+
+def _to_json(doc):
+    doc["_id"] = str(doc["_id"])
+    return doc
+
+@app.get("/api/applications")
+def api_list_apps():
+    coll = connect()
+    apps = list_applications(coll)
+    return jsonify([_to_json(a) for a in apps])
+
+@app.post("/api/applications")
+def api_add_app():
+    data = request.get_json(force=True) or {}
+    payload = {
+        "company": data.get("company"),
+        "title":   data.get("title"),
+        "url":     data.get("url"),
+        "status":  data.get("status", "wishlist"),
+        "date":    data.get("date"),
+    }
+    coll = connect()
+    new_id = add_application(coll, payload)  # should return inserted_id
+    payload["_id"] = str(new_id)
+    return jsonify(payload), 201
+
+@app.patch("/api/applications/<id>")
+def api_update_status(id):
+    data = request.get_json(force=True) or {}
+    status = data.get("status")
+    if not status:
+        return jsonify({"error": "status required"}), 400
+    coll = connect()
+    ok = update_application_status(coll, ObjectId(id), status)
+    return jsonify({"ok": bool(ok)})
 
 if __name__ == '__main__':
     app.run(debug=True)

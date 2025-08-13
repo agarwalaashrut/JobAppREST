@@ -1,63 +1,348 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Saved Applications</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-    <style>
-        /* Basic table styling.  Override this in your static CSS as needed. */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1rem;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 0.5rem;
-            text-align: left;
-        }
-        th {
-            background-color: #f5f5f5;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Application Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- keep your CSS path if you have one -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='applications.css') }}">
+
 </head>
 <body>
-    <div class="container">
-        <h1>Saved Applications</h1>
-        {% if applications %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Company</th>
-                        <th>Location</th>
-                        <th>Status</th>
-                        <th>Link</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for app in applications %}
-                    <tr>
-                        <td>{{ app.title }}</td>
-                        <td>{{ app.company }}</td>
-                        <td>{{ app.location }}</td>
-                        <td>{{ app.status }}</td>
-                        <td>
-                            {% if app.link %}
-                                <a href="{{ app.link }}" target="_blank">View</a>
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No applications saved yet.</p>
-        {% endif %}
-        <a href="{{ url_for('index') }}">Back to Search</a>
+  <div id="app">
+    <!-- Sidebar (unchanged) -->
+    <aside class="sidebar">
+      <div class="logo-section">
+        <div class="logo"><h1>JobTrackr</h1></div>
+      </div>
+      <nav class="nav">
+        <a href="#" class="nav-item active">… Applications …</a>
+        <a href="#" class="nav-item">… Job Finder …</a>
+        <a href="#" class="nav-item">… CV Editor …</a>
+        <a href="#" class="nav-item">… Cover Letters …</a>
+        <a href="#" class="nav-item">… Interviews …</a>
+        <a href="#" class="nav-item">… Settings …</a>
+      </nav>
+      <div class="profile-section">
+        <a href="#" class="profile">
+          <img class="profile-img" src="https://placehold.co/100x100/7c3aed/ffffff?text=U" alt="User avatar">
+          <div class="profile-info">
+            <p class="profile-name">User Name</p>
+            <p class="profile-link">View profile</p>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <header class="header">
+        <div class="header-content">
+          <button id="add-btn" class="add-btn">
+            <svg class="add-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
+            New Application
+          </button>
+        </div>
+      </header>
+
+      <main class="content">
+        <div id="kanban" class="kanban"></div>
+      </main>
     </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add New Application</h2>
+        <button id="close-btn" class="close-btn">
+          <svg class="close-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      <form id="job-form" class="form">
+        <div class="form-group">
+          <label for="company">Company</label>
+          <input type="text" id="company" name="company" required>
+        </div>
+        <div class="form-group">
+          <label for="title">Job Title</label>
+          <input type="text" id="title" name="title" required>
+        </div>
+        <div class="form-group">
+          <label for="url">Job Post URL</label>
+          <input type="url" id="url" name="url">
+        </div>
+        <div class="form-group">
+          <label for="status">Status</label>
+          <select id="status" name="status"></select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="submit-btn">Add Application</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application overlay (unchanged visuals) -->
+  <div id="app-overlay" class="app-overlay hidden">
+    <div class="app-overlay-content">
+      <div class="app-overlay-header">
+        <button id="close-overlay-btn" class="close-btn">
+          <svg class="close-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="app-overlay-body">
+        <div class="new-action-grid">
+          <div class="left-column">
+            <div class="company-card">
+              <h2 id="overlay-company">—</h2>
+              <p id="overlay-title">—</p>
+              <span id="overlay-status" class="status-badge wishlist">Wishlist</span>
+            </div>
+            <div class="quick-actions-card">
+              <div class="card-header">
+                <svg class="action-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+                <h3>Quick Actions</h3>
+              </div>
+              <div class="action-buttons">
+                <a id="overlay-apply" class="action-btn primary" target="_blank" rel="noopener">Apply Now</a>
+                <a id="overlay-view" class="action-btn secondary" target="_blank" rel="noopener">View Job Post</a>
+              </div>
+            </div>
+          </div>
+          <div class="middle-column">
+            <div class="notes-card">
+              <div class="card-header">
+                <svg class="action-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9z"/></svg>
+                <h3>Notes & Thoughts</h3>
+              </div>
+              <p class="notes-description">Keep track of your research and ideas</p>
+              <textarea id="notes-editor" class="notes-textarea" placeholder="Start typing your notes here..."></textarea>
+            </div>
+          </div>
+          <div class="right-column">
+            <!-- your static cards -->
+            <div class="tool-card cv-card">…</div>
+            <div class="tool-card cover-letter-card">…</div>
+            <div class="tool-card interview-card">…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Columns (same keys you used)
+    const columns = {
+      wishlist: { title: 'Wishlist', class: 'wishlist' },
+      applied: { title: 'Applied', class: 'applied' },
+      interviewing: { title: 'Interviewing', class: 'interviewing' },
+      offer: { title: 'Offer', class: 'offer' },
+      rejected: { title: 'Rejected', class: 'rejected' },
+    };
+
+    // DOM refs
+    const kanban = document.getElementById('kanban');
+    const modal = document.getElementById('modal');
+    const addBtn = document.getElementById('add-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const form = document.getElementById('job-form');
+    const statusSelect = document.getElementById('status');
+
+    const appOverlay = document.getElementById('app-overlay');
+    const closeOverlayBtn = document.getElementById('close-overlay-btn');
+    const overlayCompany = document.getElementById('overlay-company');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayStatus = document.getElementById('overlay-status');
+    const overlayApply = document.getElementById('overlay-apply');
+    const overlayView = document.getElementById('overlay-view');
+
+    // State
+    let jobs = []; // comes from backend
+
+    // Helpers — API
+    async function apiGet() {
+      const res = await fetch('/api/applications');
+      if (!res.ok) throw new Error('Failed to load applications');
+      return res.json();
+    }
+    async function apiCreate(payload) {
+      const res = await fetch('/api/applications', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to create application');
+      return res.json();
+    }
+    async function apiUpdate(id, updates) {
+      const res = await fetch(`/api/applications/${id}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error('Failed to update application');
+      return res.json();
+    }
+
+    // UI builders
+    function populateStatusSelect() {
+      statusSelect.innerHTML = '';
+      Object.entries(columns).forEach(([key, c]) => {
+        const opt = document.createElement('option');
+        opt.value = key; opt.textContent = c.title;
+        statusSelect.appendChild(opt);
+      });
+    }
+
+    function renderBoard() {
+      kanban.innerHTML = '';
+      Object.keys(columns).forEach(statusKey => {
+        const column = columns[statusKey];
+        const columnEl = document.createElement('div');
+        columnEl.className = `column ${column.class}`;
+        columnEl.dataset.status = statusKey;
+
+        const jobCount = jobs.filter(j => j.status === statusKey).length;
+        columnEl.innerHTML = `
+          <div class="column-header">
+            <h2>${column.title}</h2>
+            <span class="count">${jobCount}</span>
+          </div>
+          <div class="cards"></div>
+        `;
+
+        const cardsContainer = columnEl.querySelector('.cards');
+        jobs.filter(j => j.status === statusKey).forEach(job => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.draggable = true;
+          card.dataset.jobId = job._id; // Mongo _id
+          card.innerHTML = `
+            <div class="card-header">
+              <h3>${job.company ?? ''}</h3>
+              <span class="status-badge ${job.status}">${columns[job.status].title}</span>
+            </div>
+            <p class="job-title">${job.title ?? ''}</p>
+            <p class="date">${job.date ? 'Applied: ' + new Date(job.date).toLocaleDateString() : ''}</p>
+          `;
+          card.addEventListener('click', () => openAppOverlay(job));
+          cardsContainer.appendChild(card);
+        });
+
+        kanban.appendChild(columnEl);
+      });
+
+      setupDragDrop();
+    }
+
+    function setupDragDrop() {
+      const cards = document.querySelectorAll('.card');
+      const containers = document.querySelectorAll('.cards');
+
+      cards.forEach(card => {
+        card.addEventListener('dragstart', () => card.classList.add('dragging'));
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      });
+
+      containers.forEach(container => {
+        container.addEventListener('dragover', e => {
+          e.preventDefault();
+          const afterEl = getDragAfterElement(container, e.clientY);
+          const dragging = document.querySelector('.dragging');
+          if (!dragging) return;
+          if (afterEl == null) container.appendChild(dragging);
+          else container.insertBefore(dragging, afterEl);
+        });
+
+        container.addEventListener('drop', async e => {
+          e.preventDefault();
+          const dragging = document.querySelector('.dragging');
+          if (!dragging) return;
+          const id = dragging.dataset.jobId;
+          const newStatus = container.closest('.column').dataset.status;
+          try {
+            await apiUpdate(id, { status: newStatus });
+            const job = jobs.find(j => j._id === id);
+            if (job) job.status = newStatus;
+            renderBoard();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    function getDragAfterElement(container, y) {
+      const els = [...container.querySelectorAll('.card:not(.dragging)')];
+      return els.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Overlay
+    function openAppOverlay(job) {
+      overlayCompany.textContent = job.company ?? '';
+      overlayTitle.textContent = job.title ?? '';
+      overlayStatus.textContent = columns[job.status]?.title ?? job.status;
+      overlayStatus.className = `status-badge ${job.status}`;
+      overlayApply.href = job.url || '#';
+      overlayView.href = job.url || '#';
+      appOverlay.classList.remove('hidden');
+      setTimeout(() => appOverlay.classList.add('show'), 10);
+    }
+    function closeAppOverlay() {
+      appOverlay.classList.remove('show');
+      setTimeout(() => appOverlay.classList.add('hidden'), 300);
+    }
+
+    // Modal
+    function openModal() { modal.classList.remove('hidden'); setTimeout(() => modal.classList.add('show'), 10); }
+    function closeModal() { modal.classList.remove('show'); setTimeout(() => modal.classList.add('hidden'), 300); }
+
+    // Events
+    addBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    closeOverlayBtn.addEventListener('click', closeAppOverlay);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    appOverlay.addEventListener('click', e => { if (e.target === appOverlay) closeAppOverlay(); });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        company: fd.get('company'),
+        title: fd.get('title'),
+        url: fd.get('url') || null,
+        status: fd.get('status'),
+        date: new Date().toISOString(),
+      };
+      try {
+        const created = await apiCreate(payload);
+        jobs.push(created);
+        form.reset();
+        closeModal();
+        renderBoard();
+      } catch (err) { alert(err.message); }
+    });
+
+    // Init
+    populateStatusSelect();
+    apiGet()
+      .then(data => { jobs = data; renderBoard(); })
+      .catch(err => { console.error(err); jobs = []; renderBoard(); });
+  });
+  </script>
 </body>
 </html>

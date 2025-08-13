@@ -34,20 +34,6 @@ db = client[DB_NAME]
 collection: Collection = db[COLLECTION_NAME]
 
 
-def add_application(application_data: Dict[str, str]) -> str:
-    """Insert a new job application document into MongoDB.
-
-    Args:
-        application_data: A dictionary containing details about the job
-            application.  Expected keys include ``title``, ``company``,
-            ``location``, ``link`` and optionally ``status``.
-
-    Returns:
-        The string representation of the inserted document's ObjectId.
-    """
-    result = collection.insert_one(application_data)
-    return str(result.inserted_id)
-
 
 def get_all_applications() -> List[Dict[str, str]]:
     """Retrieve all job application documents from MongoDB.
@@ -64,3 +50,23 @@ def get_all_applications() -> List[Dict[str, str]]:
         doc["_id"] = str(doc["_id"])
         docs.append(doc)
     return docs
+
+
+def _client():
+    uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    return MongoClient(uri, serverSelectionTimeoutMS=20000)
+
+def connect():
+    dbname = os.getenv("DB_NAME", "jobapp")
+    collname = os.getenv("COLLECTION_NAME", "applications")
+    return _client()[dbname][collname]
+
+def add_application(coll, doc: Dict):
+    res = coll.insert_one(doc)
+    return res.inserted_id
+
+def list_applications(coll) -> List[Dict]:
+    return list(coll.find().sort("date", -1))
+
+def update_application_status(coll, _id, status: str):
+    return coll.update_one({"_id": _id}, {"$set": {"status": status}}).modified_count
